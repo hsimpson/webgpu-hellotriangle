@@ -42,5 +42,9 @@
     "webpack-cli": "^3.3.11",
     "webpack-dev-server": "^3.11.0",
     "webpack-merge": "^4.2.2"
+  },
+  "dependencies": {
+    "gl-matrix": "^3.3.0",
+    "resize-observer-polyfill": "^1.5.1"
   }
 }
