@@ -1,5 +1,6 @@
 import webpack from 'webpack';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
+import CopyWebpackPlugin from 'copy-webpack-plugin';
 
 const commonConfig: webpack.Configuration = {
   entry: './src/index.ts',
@@ -24,6 +25,9 @@ const commonConfig: webpack.Configuration = {
   plugins: [
     new HtmlWebpackPlugin({
       template: './src/index.html',
+    }),
+    new CopyWebpackPlugin({
+      patterns: [{ from: './src/shaders/*.spv', to: '.', flatten: true }],
     }),
   ],
 };
