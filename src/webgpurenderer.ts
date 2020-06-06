@@ -2,6 +2,7 @@
 /// <reference path="../node_modules/@webgpu/types/dist/index.d.ts" />
 
 import ResizeObserver from 'resize-observer-polyfill';
+import { glMatrix, mat4, vec3 } from 'gl-matrix';
 
 /*
           C
@@ -48,6 +49,7 @@ export default class WebGPURenderer {
   private positionBuffer: GPUBuffer;
   private colorBuffer: GPUBuffer;
   private indexBuffer: GPUBuffer;
+  private uniformBuffer: GPUBuffer;
 
   // shader modules
   private vertexModule: GPUShaderModule;
@@ -63,13 +65,38 @@ export default class WebGPURenderer {
   private commandEncoder: GPUCommandEncoder;
   private passEncoder: GPURenderPassEncoder;
 
+  private modelMatrix: mat4;
+  private viewMatrix: mat4;
+  private projectionMatrix: mat4;
+  private viewTranslation: vec3 = [0, 0, 5];
+
+  private uniformBindGroup: GPUBindGroup;
+
   public constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
+
+    this.modelMatrix = mat4.create();
+    this.viewMatrix = this.createViewMat();
+    this.projectionMatrix = this.createPerspectiveMat();
+  }
+
+  private createPerspectiveMat(): mat4 {
+    const mat = mat4.create();
+    const aspectRatio = this.canvas.width / this.canvas.height;
+    mat4.perspective(mat, glMatrix.toRadian(45), aspectRatio, 0.1, 1000);
+    return mat;
+  }
+
+  private createViewMat(): mat4 {
+    const mat = mat4.create();
+    mat4.lookAt(mat, this.viewTranslation, [0, 0, 0], [0, 1, 0]);
+    return mat;
   }
 
   private resize(width: number, height: number): void {
     this.canvas.width = width;
     this.canvas.height = height;
+    this.projectionMatrix = this.createPerspectiveMat();
     //console.log(`canvas size: ${this.canvas.width}, ${this.canvas.height}`);
     this.resizeSwapchain();
   }
@@ -113,6 +140,18 @@ export default class WebGPURenderer {
     buffer.unmap();
 
     return buffer;
+  }
+
+  private updateUniformBuffer(): void {
+    const uboArray = new Float32Array([...this.modelMatrix, ...this.createViewMat(), ...this.projectionMatrix]);
+    /*
+
+    const bufferMapped = await this.uniformBuffer.mapWriteAsync();
+    const writeArray = new Float32Array(bufferMapped);
+    writeArray.set(uboArray);
+    this.uniformBuffer.unmap();
+    */
+    this.queue.writeBuffer(this.uniformBuffer, 0, uboArray.buffer);
   }
 
   private async loadShader(path: string): Promise<GPUShaderModule> {
@@ -181,6 +220,7 @@ export default class WebGPURenderer {
 
     this.passEncoder = this.commandEncoder.beginRenderPass(renderPassDesc);
     this.passEncoder.setPipeline(this.pipeline);
+    this.passEncoder.setBindGroup(0, this.uniformBindGroup);
     this.passEncoder.setViewport(0, 0, this.canvas.width, this.canvas.height, 0, 1);
     this.passEncoder.setScissorRect(0, 0, this.canvas.width, this.canvas.height);
     this.passEncoder.setVertexBuffer(0, this.positionBuffer);
@@ -197,6 +237,9 @@ export default class WebGPURenderer {
     this.positionBuffer = this.createBuffer(POSITIONS, GPUBufferUsage.VERTEX);
     this.colorBuffer = this.createBuffer(COLORS, GPUBufferUsage.VERTEX);
     this.indexBuffer = this.createBuffer(INDICES, GPUBufferUsage.INDEX);
+
+    const uboArray = new Float32Array([...this.modelMatrix, ...this.viewMatrix, ...this.projectionMatrix]);
+    this.uniformBuffer = this.createBuffer(uboArray, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
 
     // create shader modules
     this.vertexModule = await this.loadShader('basic.vert.spv');
@@ -237,7 +280,29 @@ export default class WebGPURenderer {
       format: 'depth24plus-stencil8',
     };
 
-    const piplineLayoutDesc: GPUPipelineLayoutDescriptor = { bindGroupLayouts: [] };
+    const uniformBindGroupLayout = this.device.createBindGroupLayout({
+      entries: [
+        {
+          binding: 0,
+          visibility: GPUShaderStage.VERTEX,
+          type: 'uniform-buffer',
+        },
+      ],
+    });
+
+    this.uniformBindGroup = this.device.createBindGroup({
+      layout: uniformBindGroupLayout,
+      entries: [
+        {
+          binding: 0,
+          resource: {
+            buffer: this.uniformBuffer,
+          },
+        },
+      ],
+    });
+
+    const piplineLayoutDesc: GPUPipelineLayoutDescriptor = { bindGroupLayouts: [uniformBindGroupLayout] };
     const layout = this.device.createPipelineLayout(piplineLayoutDesc);
 
     const vertexStage: GPUProgrammableStageDescriptor = {
@@ -288,6 +353,9 @@ export default class WebGPURenderer {
     this.colorTexture = this.swapchain.getCurrentTexture();
     this.colorTextureView = this.colorTexture.createView();
 
+    this.viewTranslation[2] = this.viewTranslation[2] + 0.1;
+
+    this.updateUniformBuffer();
     this.encodeCommands();
 
     requestAnimationFrame(this.render);
