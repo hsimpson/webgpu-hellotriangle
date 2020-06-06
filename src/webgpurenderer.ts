@@ -69,6 +69,8 @@ export default class WebGPURenderer {
   private viewMatrix: mat4;
   private projectionMatrix: mat4;
   private viewTranslation: vec3 = [0, 0, 5];
+  private readonly zNear = 0.1;
+  private readonly zFar = 1000;
 
   private uniformBindGroup: GPUBindGroup;
 
@@ -83,7 +85,7 @@ export default class WebGPURenderer {
   private createPerspectiveMat(): mat4 {
     const mat = mat4.create();
     const aspectRatio = this.canvas.width / this.canvas.height;
-    mat4.perspective(mat, glMatrix.toRadian(45), aspectRatio, 0.1, 1000);
+    mat4.perspective(mat, glMatrix.toRadian(45), aspectRatio, this.zNear, this.zFar);
     return mat;
   }
 
@@ -127,8 +129,16 @@ export default class WebGPURenderer {
     });
     ro.observe(this.canvas);
 
+    this.canvas.addEventListener('wheel', this.onMouseWheel);
+
     return true;
   }
+
+  private onMouseWheel = (event: WheelEvent): void => {
+    let z = (this.viewTranslation[2] += event.deltaY * 0.01);
+    z = Math.max(this.zNear, Math.min(this.zFar, z));
+    this.viewTranslation[2] = z;
+  };
 
   private createBuffer(arr: Float32Array | Uint16Array, usage: GPUBufferUsageFlags): GPUBuffer {
     const [buffer, bufferMapped] = this.device.createBufferMapped({
@@ -353,7 +363,7 @@ export default class WebGPURenderer {
     this.colorTexture = this.swapchain.getCurrentTexture();
     this.colorTextureView = this.colorTexture.createView();
 
-    this.viewTranslation[2] = this.viewTranslation[2] + 0.1;
+    mat4.rotateZ(this.modelMatrix, this.modelMatrix, glMatrix.toRadian(0.5));
 
     this.updateUniformBuffer();
     this.encodeCommands();
