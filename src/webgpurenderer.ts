@@ -109,9 +109,13 @@ export default class WebGPURenderer {
       return false;
     }
 
-    this.adapter = await gpu.requestAdapter();
+    try {
+      this.adapter = await gpu.requestAdapter();
 
-    this.device = await this.adapter.requestDevice();
+      this.device = await this.adapter.requestDevice();
+    } catch (error) {
+      console.error(error);
+    }
 
     this.queue = this.device.defaultQueue;
 
