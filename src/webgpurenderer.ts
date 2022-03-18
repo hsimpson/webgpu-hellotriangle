@@ -300,8 +300,8 @@ export default class WebGPURenderer {
     this.uniformBuffer = this.createBuffer(uboArray, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
 
     // create shader modules
-    this.vertexModule = await this.loadShader('/shaders/basic.vert.wgsl');
-    this.fragmentModule = await this.loadShader('/shaders/basic.frag.wgsl');
+    this.vertexModule = await this.loadShader('./shaders/basic.vert.wgsl');
+    this.fragmentModule = await this.loadShader('./shaders/basic.frag.wgsl');
 
     const positionAttribute: GPUVertexAttribute = {
       shaderLocation: 0,
