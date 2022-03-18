@@ -14,36 +14,36 @@ import { glMatrix, mat4, vec3 } from 'gl-matrix';
 */
 
 const POSITIONS = new Float32Array([
-  1.0,
-  -1.0,
-  0.0, // A
-  -1.0,
-  -1.0,
-  0.0, // B
-  0.0,
-  1.0,
-  0.0, // C
+  // A
+  1.0, -1.0, 0.0,
+  // B
+  -1.0, -1.0, 0.0,
+  // C
+  0.0, 1.0, 0.0,
 ]);
 
 const COLORS = new Float32Array([
-  1.0,
-  0.0,
-  0.0, // A (red)
-  0.0,
-  1.0,
-  0.0, // B (green)
-  0.0,
-  0.0,
-  1.0, // C (blue)
+  // A (red)
+  1.0, 0.0, 0.0, 1.0,
+  // B (green)
+  0.0, 1.0, 0.0, 1.0,
+  // C (blue)
+  0.0, 0.0, 1.0, 1.0,
 ]);
 
-const INDICES = new Uint16Array([0, 1, 2]);
+// add an additional 4th index for padding, because when the buffer is created via device.createBuffer() and
+// If mappedAtCreation is true, the byte size must be a multiple of 4
+const INDICES = new Uint16Array([0, 1, 2, 0]);
 
 export default class WebGPURenderer {
   private canvas: HTMLCanvasElement;
-  private adapter: GPUAdapter;
+
   private device: GPUDevice;
   private queue: GPUQueue;
+
+  private presentationContext: GPUCanvasContext;
+  private presentationSize: GPUExtent3DStrict;
+  private presentationFormat: GPUTextureFormat;
 
   // buffers
   private positionBuffer: GPUBuffer;
@@ -55,8 +55,13 @@ export default class WebGPURenderer {
   private vertexModule: GPUShaderModule;
   private fragmentModule: GPUShaderModule;
 
+  private renderTarget: GPUTexture;
+  private renderTargetView: GPUTextureView;
+
+  private depthTarget: GPUTexture;
+  private depthTargetView: GPUTextureView;
+
   private pipeline: GPURenderPipeline;
-  private swapchain: GPUSwapChain;
   private colorTexture: GPUTexture;
   private colorTextureView: GPUTextureView;
   private depthTexture: GPUTexture;
@@ -71,6 +76,7 @@ export default class WebGPURenderer {
   private viewTranslation: vec3 = [0, 0, 5];
   private readonly zNear = 0.1;
   private readonly zFar = 1000;
+  private readonly sampleCount = 4;
 
   private uniformBindGroup: GPUBindGroup;
 
@@ -96,28 +102,32 @@ export default class WebGPURenderer {
   }
 
   private resize(width: number, height: number): void {
+    const devicePixelRatio = window.devicePixelRatio || 1;
     this.canvas.width = width;
     this.canvas.height = height;
-    this.projectionMatrix = this.createPerspectiveMat();
-    //console.log(`canvas size: ${this.canvas.width}, ${this.canvas.height}`);
-    this.resizeSwapchain();
+
+    if (
+      width * devicePixelRatio !== this.presentationSize[0] ||
+      height * devicePixelRatio !== this.presentationSize[1]
+    ) {
+      this.projectionMatrix = this.createPerspectiveMat();
+      this.resizeSwapchain();
+    }
   }
 
   private async initialize(): Promise<boolean> {
     const gpu: GPU = navigator.gpu;
     if (!gpu) {
+      console.error('No WebGPU support navigator.gpu not available!');
       return false;
     }
 
-    try {
-      this.adapter = await gpu.requestAdapter();
+    const adapter = await gpu.requestAdapter();
+    console.log(adapter.limits);
 
-      this.device = await this.adapter.requestDevice();
-    } catch (error) {
-      console.error(error);
-    }
+    this.device = await adapter.requestDevice();
 
-    this.queue = this.device.defaultQueue;
+    this.queue = this.device.queue;
 
     // display canvas
     this.canvas.style.display = 'block';
@@ -135,6 +145,22 @@ export default class WebGPURenderer {
 
     this.canvas.addEventListener('wheel', this.onMouseWheel);
 
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    this.presentationSize = {
+      width: this.canvas.clientWidth * devicePixelRatio,
+      height: this.canvas.clientHeight * devicePixelRatio,
+      depthOrArrayLayers: 1,
+    };
+
+    this.presentationContext = this.canvas.getContext('webgpu');
+    this.presentationFormat = this.presentationContext.getPreferredFormat(adapter);
+
+    this.presentationContext.configure({
+      device: this.device,
+      format: this.presentationFormat,
+      size: this.presentationSize,
+    });
+
     return true;
   }
 
@@ -145,83 +171,101 @@ export default class WebGPURenderer {
   };
 
   private createBuffer(arr: Float32Array | Uint16Array, usage: GPUBufferUsageFlags): GPUBuffer {
-    const [buffer, bufferMapped] = this.device.createBufferMapped({
-      size: arr.byteLength,
-      usage,
-    });
-    const writeArray = arr instanceof Float32Array ? new Float32Array(bufferMapped) : new Uint16Array(bufferMapped);
-    writeArray.set(arr);
-    buffer.unmap();
+    try {
+      const buffer = this.device.createBuffer({
+        mappedAtCreation: true,
+        size: arr.byteLength,
+        usage,
+      });
 
-    return buffer;
+      const bufferMapped = buffer.getMappedRange();
+
+      const writeArray = arr instanceof Float32Array ? new Float32Array(bufferMapped) : new Uint16Array(bufferMapped);
+      writeArray.set(arr);
+      buffer.unmap();
+
+      return buffer;
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   private updateUniformBuffer(): void {
     const uboArray = new Float32Array([...this.modelMatrix, ...this.createViewMat(), ...this.projectionMatrix]);
-    /*
 
-    const bufferMapped = await this.uniformBuffer.mapWriteAsync();
-    const writeArray = new Float32Array(bufferMapped);
-    writeArray.set(uboArray);
-    this.uniformBuffer.unmap();
-    */
     this.queue.writeBuffer(this.uniformBuffer, 0, uboArray.buffer);
   }
 
   private async loadShader(path: string): Promise<GPUShaderModule> {
     const response = await fetch(path);
-    const buffer = await response.arrayBuffer();
 
     const shaderModule = this.device.createShaderModule({
-      code: new Uint32Array(buffer),
+      code: await response.text(),
     });
 
     return shaderModule;
   }
 
   private resizeSwapchain(): void {
-    if (!this.swapchain) {
-      const context: GPUCanvasContext = this.canvas.getContext('gpupresent') as any;
-      const swapChainDesc: GPUSwapChainDescriptor = {
-        device: this.device,
-        format: 'bgra8unorm',
-        usage: GPUTextureUsage.OUTPUT_ATTACHMENT | GPUTextureUsage.COPY_SRC,
-      };
-      this.swapchain = context.configureSwapChain(swapChainDesc);
+    if (this.renderTarget !== undefined) {
+      this.renderTarget.destroy();
+      this.depthTarget.destroy();
     }
 
-    const depthSize: GPUExtent3D = {
-      width: this.canvas.width,
-      height: this.canvas.height,
-      depth: 1,
+    const devicePixelRatio = window.devicePixelRatio || 1;
+
+    this.presentationSize = {
+      width: this.canvas.clientWidth * devicePixelRatio,
+      height: this.canvas.clientHeight * devicePixelRatio,
+      depthOrArrayLayers: 1,
     };
 
-    const depthTextureDesc: GPUTextureDescriptor = {
-      size: depthSize,
-      //arrayLayerCount: 1, // FIXME: possible move to GPUTextureViewDescriptor?!
-      mipLevelCount: 1,
-      sampleCount: 1,
-      dimension: '2d',
+    this.presentationContext.configure({
+      device: this.device,
+      format: this.presentationFormat,
+      size: this.presentationSize,
+    });
+
+    /* render target */
+    this.renderTarget = this.device.createTexture({
+      size: this.presentationSize,
+      sampleCount: this.sampleCount,
+      format: this.presentationFormat,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+    this.renderTargetView = this.renderTarget.createView();
+
+    /* depth target */
+    this.depthTarget = this.device.createTexture({
+      size: this.presentationSize,
+      sampleCount: this.sampleCount,
       format: 'depth24plus-stencil8',
-      usage: GPUTextureUsage.OUTPUT_ATTACHMENT | GPUTextureUsage.COPY_SRC,
-    };
-
-    this.depthTexture = this.device.createTexture(depthTextureDesc);
-    this.depthTextureView = this.depthTexture.createView();
+      usage: GPUTextureUsage.RENDER_ATTACHMENT,
+    });
+    this.depthTargetView = this.depthTarget.createView();
   }
 
   private encodeCommands(): void {
-    const colorAttachment: GPURenderPassColorAttachmentDescriptor = {
-      attachment: this.colorTextureView,
-      loadValue: { r: 0, g: 0, b: 0, a: 1 },
+    const colorAttachment: GPURenderPassColorAttachment = {
+      view: this.presentationContext.getCurrentTexture().createView(),
+      loadOp: 'clear',
       storeOp: 'store',
     };
 
-    const depthAttachment: GPURenderPassDepthStencilAttachmentDescriptor = {
-      attachment: this.depthTextureView,
-      depthLoadValue: 1,
+    if (this.sampleCount > 1) {
+      colorAttachment.view = this.renderTargetView;
+      colorAttachment.resolveTarget = this.presentationContext.getCurrentTexture().createView();
+    }
+
+    const depthAttachment: GPURenderPassDepthStencilAttachment = {
+      view: this.depthTargetView,
+
+      depthLoadOp: 'clear',
+      depthClearValue: 1.0,
       depthStoreOp: 'store',
-      stencilLoadValue: 'load',
+
+      stencilLoadOp: 'clear',
+      stencilClearValue: 0,
       stencilStoreOp: 'store',
     };
 
@@ -239,9 +283,9 @@ export default class WebGPURenderer {
     this.passEncoder.setScissorRect(0, 0, this.canvas.width, this.canvas.height);
     this.passEncoder.setVertexBuffer(0, this.positionBuffer);
     this.passEncoder.setVertexBuffer(1, this.colorBuffer);
-    this.passEncoder.setIndexBuffer(this.indexBuffer);
+    this.passEncoder.setIndexBuffer(this.indexBuffer, 'uint16');
     this.passEncoder.drawIndexed(3, 1, 0, 0, 0);
-    this.passEncoder.endPass();
+    this.passEncoder.end();
 
     this.queue.submit([this.commandEncoder.finish()]);
   }
@@ -256,39 +300,39 @@ export default class WebGPURenderer {
     this.uniformBuffer = this.createBuffer(uboArray, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
 
     // create shader modules
-    this.vertexModule = await this.loadShader('basic.vert.spv');
-    this.fragmentModule = await this.loadShader('basic.frag.spv');
+    this.vertexModule = await this.loadShader('/shaders/basic.vert.wgsl');
+    this.fragmentModule = await this.loadShader('/shaders/basic.frag.wgsl');
 
-    const positionAttributeDesc: GPUVertexAttributeDescriptor = {
+    const positionAttribute: GPUVertexAttribute = {
       shaderLocation: 0,
       offset: 0,
-      format: 'float3',
+      format: 'float32x3',
     };
 
-    const colorAttributeDesc: GPUVertexAttributeDescriptor = {
+    const colorAttribute: GPUVertexAttribute = {
       shaderLocation: 1,
       offset: 0,
-      format: 'float3',
+      format: 'float32x4',
     };
 
-    const positionBufferDesc: GPUVertexBufferLayoutDescriptor = {
-      attributes: [positionAttributeDesc],
+    const positionBufferLayout: GPUVertexBufferLayout = {
+      attributes: [positionAttribute],
       arrayStride: 4 * 3, // size of Float32 = 4 bytes * count of elements
       stepMode: 'vertex',
     };
 
-    const colorBufferDesc: GPUVertexBufferLayoutDescriptor = {
-      attributes: [colorAttributeDesc],
-      arrayStride: 4 * 3, // size of Float32 = 4 bytes * count of elements
+    const colorBufferLayout: GPUVertexBufferLayout = {
+      attributes: [colorAttribute],
+      arrayStride: 4 * 4, // size of Float32 = 4 bytes * count of elements
       stepMode: 'vertex',
     };
 
-    const vertexState: GPUVertexStateDescriptor = {
-      indexFormat: 'uint16',
-      vertexBuffers: [positionBufferDesc, colorBufferDesc],
-    };
+    // const vertexState: GPUVertexState = {
+    //   indexFormat: 'uint16',
+    //   vertexBuffers: [positionBufferLayout, colorBufferLayout],
+    // };
 
-    const depthStencilState: GPUDepthStencilStateDescriptor = {
+    const depthStencilState: GPUDepthStencilState = {
       depthWriteEnabled: true,
       depthCompare: 'less',
       format: 'depth24plus-stencil8',
@@ -299,7 +343,9 @@ export default class WebGPURenderer {
         {
           binding: 0,
           visibility: GPUShaderStage.VERTEX,
-          type: 'uniform-buffer',
+          buffer: {
+            type: 'uniform',
+          },
         },
       ],
     });
@@ -319,54 +365,54 @@ export default class WebGPURenderer {
     const piplineLayoutDesc: GPUPipelineLayoutDescriptor = { bindGroupLayouts: [uniformBindGroupLayout] };
     const layout = this.device.createPipelineLayout(piplineLayoutDesc);
 
-    const vertexStage: GPUProgrammableStageDescriptor = {
+    const vertexState: GPUVertexState = {
       module: this.vertexModule,
       entryPoint: 'main',
+      buffers: [positionBufferLayout, colorBufferLayout],
     };
 
-    const fragmentStage: GPUProgrammableStageDescriptor = {
-      module: this.fragmentModule,
-      entryPoint: 'main',
-    };
-
-    const colorState: GPUColorStateDescriptor = {
+    const colorState: GPUColorTargetState = {
       format: 'bgra8unorm',
-      alphaBlend: {
-        srcFactor: 'src-alpha',
-        dstFactor: 'one-minus-src-alpha',
-        operation: 'add',
-      },
-      colorBlend: {
-        srcFactor: 'src-alpha',
-        dstFactor: 'one-minus-src-alpha',
-        operation: 'add',
+      blend: {
+        alpha: {
+          srcFactor: 'src-alpha',
+          dstFactor: 'one-minus-src-alpha',
+          operation: 'add',
+        },
+        color: {
+          srcFactor: 'src-alpha',
+          dstFactor: 'one-minus-src-alpha',
+          operation: 'add',
+        },
       },
       writeMask: GPUColorWrite.ALL,
     };
 
-    const rasterizationState: GPURasterizationStateDescriptor = {
-      frontFace: 'cw',
-      cullMode: 'none',
+    const fragmentStage: GPUFragmentState = {
+      module: this.fragmentModule,
+      entryPoint: 'main',
+      targets: [colorState],
     };
 
     const pipelineDesc: GPURenderPipelineDescriptor = {
       layout,
-      vertexStage,
-      fragmentStage,
-      primitiveTopology: 'triangle-list',
-      colorStates: [colorState],
-      depthStencilState,
-      vertexState,
-      rasterizationState,
+      vertex: vertexState,
+      fragment: fragmentStage,
+      primitive: {
+        topology: 'triangle-list',
+        frontFace: 'cw',
+        cullMode: 'none',
+      },
+      depthStencil: depthStencilState,
+      multisample: {
+        count: this.sampleCount,
+      },
     };
 
     this.pipeline = this.device.createRenderPipeline(pipelineDesc);
   }
 
   private render = (): void => {
-    this.colorTexture = this.swapchain.getCurrentTexture();
-    this.colorTextureView = this.colorTexture.createView();
-
     mat4.rotateZ(this.modelMatrix, this.modelMatrix, glMatrix.toRadian(0.5));
 
     this.updateUniformBuffer();
