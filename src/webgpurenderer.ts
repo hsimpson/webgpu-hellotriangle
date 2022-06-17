@@ -153,12 +153,12 @@ export default class WebGPURenderer {
     };
 
     this.presentationContext = this.canvas.getContext('webgpu');
-    this.presentationFormat = this.presentationContext.getPreferredFormat(adapter);
+    this.presentationFormat = gpu.getPreferredCanvasFormat();
 
     this.presentationContext.configure({
       device: this.device,
       format: this.presentationFormat,
-      size: this.presentationSize,
+      alphaMode: 'opaque',
     });
 
     return true;
@@ -223,7 +223,7 @@ export default class WebGPURenderer {
     this.presentationContext.configure({
       device: this.device,
       format: this.presentationFormat,
-      size: this.presentationSize,
+      alphaMode: 'opaque',
     });
 
     /* render target */
