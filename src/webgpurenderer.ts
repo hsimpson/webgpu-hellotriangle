@@ -42,7 +42,7 @@ export default class WebGPURenderer {
   private queue: GPUQueue;
 
   private presentationContext: GPUCanvasContext;
-  private presentationSize: GPUExtent3DStrict;
+  private presentationSize: GPUExtent3DDict;
   private presentationFormat: GPUTextureFormat;
 
   // buffers
@@ -62,10 +62,6 @@ export default class WebGPURenderer {
   private depthTargetView: GPUTextureView;
 
   private pipeline: GPURenderPipeline;
-  private colorTexture: GPUTexture;
-  private colorTextureView: GPUTextureView;
-  private depthTexture: GPUTexture;
-  private depthTextureView: GPUTextureView;
 
   private commandEncoder: GPUCommandEncoder;
   private passEncoder: GPURenderPassEncoder;
@@ -102,14 +98,16 @@ export default class WebGPURenderer {
   }
 
   private resize(width: number, height: number): void {
-    const devicePixelRatio = window.devicePixelRatio || 1;
-    this.canvas.width = width;
-    this.canvas.height = height;
+    if (width !== this.presentationSize.width || height !== this.presentationSize.height) {
+      this.canvas.width = width;
+      this.canvas.height = height;
 
-    if (
-      width * devicePixelRatio !== this.presentationSize[0] ||
-      height * devicePixelRatio !== this.presentationSize[1]
-    ) {
+      this.presentationSize = {
+        width,
+        height,
+        depthOrArrayLayers: 1,
+      };
+
       this.projectionMatrix = this.createPerspectiveMat();
       this.resizeSwapchain();
     }
@@ -145,10 +143,9 @@ export default class WebGPURenderer {
 
     this.canvas.addEventListener('wheel', this.onMouseWheel);
 
-    const devicePixelRatio = window.devicePixelRatio || 1;
     this.presentationSize = {
-      width: this.canvas.clientWidth * devicePixelRatio,
-      height: this.canvas.clientHeight * devicePixelRatio,
+      width: this.canvas.width,
+      height: this.canvas.height,
       depthOrArrayLayers: 1,
     };
 
@@ -211,20 +208,6 @@ export default class WebGPURenderer {
       this.renderTarget.destroy();
       this.depthTarget.destroy();
     }
-
-    const devicePixelRatio = window.devicePixelRatio || 1;
-
-    this.presentationSize = {
-      width: this.canvas.clientWidth * devicePixelRatio,
-      height: this.canvas.clientHeight * devicePixelRatio,
-      depthOrArrayLayers: 1,
-    };
-
-    this.presentationContext.configure({
-      device: this.device,
-      format: this.presentationFormat,
-      alphaMode: 'opaque',
-    });
 
     /* render target */
     this.renderTarget = this.device.createTexture({
