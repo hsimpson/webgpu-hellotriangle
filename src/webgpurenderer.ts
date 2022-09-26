@@ -61,7 +61,7 @@ export default class WebGPURenderer {
   private depthTarget: GPUTexture;
   private depthTargetView: GPUTextureView;
 
-  private pipeline: GPURenderPipeline;
+  private renderPipeline: GPURenderPipeline;
 
   private commandEncoder: GPUCommandEncoder;
   private passEncoder: GPURenderPassEncoder;
@@ -130,17 +130,6 @@ export default class WebGPURenderer {
     // display canvas
     this.canvas.style.display = 'block';
 
-    const ro = new ResizeObserver((entries) => {
-      if (!Array.isArray(entries)) {
-        return;
-      }
-      this.resize(
-        entries[0].contentRect.width * window.devicePixelRatio,
-        entries[0].contentRect.height * window.devicePixelRatio
-      );
-    });
-    ro.observe(this.canvas);
-
     this.canvas.addEventListener('wheel', this.onMouseWheel);
 
     this.presentationSize = {
@@ -157,6 +146,17 @@ export default class WebGPURenderer {
       format: this.presentationFormat,
       alphaMode: 'opaque',
     });
+
+    const ro = new ResizeObserver((entries) => {
+      if (!Array.isArray(entries)) {
+        return;
+      }
+      this.resize(
+        entries[0].contentRect.width * window.devicePixelRatio,
+        entries[0].contentRect.height * window.devicePixelRatio
+      );
+    });
+    ro.observe(this.canvas);
 
     return true;
   }
@@ -231,6 +231,7 @@ export default class WebGPURenderer {
   private encodeCommands(): void {
     const colorAttachment: GPURenderPassColorAttachment = {
       view: this.presentationContext.getCurrentTexture().createView(),
+      clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
       loadOp: 'clear',
       storeOp: 'store',
     };
@@ -260,7 +261,7 @@ export default class WebGPURenderer {
     this.commandEncoder = this.device.createCommandEncoder();
 
     this.passEncoder = this.commandEncoder.beginRenderPass(renderPassDesc);
-    this.passEncoder.setPipeline(this.pipeline);
+    this.passEncoder.setPipeline(this.renderPipeline);
     this.passEncoder.setBindGroup(0, this.uniformBindGroup);
     this.passEncoder.setViewport(0, 0, this.canvas.width, this.canvas.height, 0, 1);
     this.passEncoder.setScissorRect(0, 0, this.canvas.width, this.canvas.height);
@@ -392,7 +393,7 @@ export default class WebGPURenderer {
       },
     };
 
-    this.pipeline = this.device.createRenderPipeline(pipelineDesc);
+    this.renderPipeline = this.device.createRenderPipeline(pipelineDesc);
   }
 
   private render = (): void => {
