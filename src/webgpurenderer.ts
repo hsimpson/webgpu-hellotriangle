@@ -1,7 +1,6 @@
 // eslint-disable-next-line @typescript-eslint/triple-slash-reference
 /// <reference path="../node_modules/@webgpu/types/dist/index.d.ts" />
 
-import ResizeObserver from 'resize-observer-polyfill';
 import { glMatrix, mat4, vec3 } from 'gl-matrix';
 
 /*
@@ -147,16 +146,13 @@ export default class WebGPURenderer {
       alphaMode: 'opaque',
     });
 
-    const ro = new ResizeObserver((entries) => {
+    const resizeObserver = new ResizeObserver(entries => {
       if (!Array.isArray(entries)) {
         return;
       }
-      this.resize(
-        entries[0].contentRect.width * window.devicePixelRatio,
-        entries[0].contentRect.height * window.devicePixelRatio
-      );
+      this.resize(entries[0].contentRect.width * window.devicePixelRatio, entries[0].contentRect.height * window.devicePixelRatio);
     });
-    ro.observe(this.canvas);
+    resizeObserver.observe(this.canvas);
 
     return true;
   }
