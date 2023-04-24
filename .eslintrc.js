@@ -25,7 +25,6 @@ module.exports = {
       },
     ],
     '@typescript-eslint/ban-ts-comment': 'warn',
-    '@typescript-eslint/explicit-function-return-type': ['warn', { allowExpressions: true }],
     '@typescript-eslint/explicit-member-accessibility': ['error', { accessibility: 'explicit' }],
     '@typescript-eslint/interface-name-prefix': 'off',
     '@typescript-eslint/no-explicit-any': 'warn', // FIXME: turn this into a warning some day

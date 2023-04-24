@@ -1,7 +1,7 @@
 // eslint-disable-next-line @typescript-eslint/triple-slash-reference
 /// <reference path="../node_modules/@webgpu/types/dist/index.d.ts" />
 
-import { glMatrix, mat4, vec3 } from 'gl-matrix';
+import { mat4, vec3 } from 'wgpu-matrix';
 
 /*
           C
@@ -65,10 +65,10 @@ export default class WebGPURenderer {
   private commandEncoder: GPUCommandEncoder;
   private passEncoder: GPURenderPassEncoder;
 
-  private modelMatrix: mat4;
-  private viewMatrix: mat4;
-  private projectionMatrix: mat4;
-  private viewTranslation: vec3 = [0, 0, 5];
+  private modelMatrix = mat4.identity();
+  private viewMatrix = mat4.identity();
+  private perspectiveMatrix = mat4.identity();
+  private eye = vec3.create(0, 0, 5);
   private readonly zNear = 0.1;
   private readonly zFar = 1000;
   private readonly sampleCount = 4;
@@ -77,23 +77,21 @@ export default class WebGPURenderer {
 
   public constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-
-    this.modelMatrix = mat4.create();
-    this.viewMatrix = this.createViewMat();
-    this.projectionMatrix = this.createPerspectiveMat();
+    this.updateViewMatrix();
+    this.updatePerspectiveMatrix();
   }
 
-  private createPerspectiveMat(): mat4 {
-    const mat = mat4.create();
+  private updatePerspectiveMatrix() {
     const aspectRatio = this.canvas.width / this.canvas.height;
-    mat4.perspective(mat, glMatrix.toRadian(45), aspectRatio, this.zNear, this.zFar);
-    return mat;
+    const fov = (45 * Math.PI) / 180;
+    this.perspectiveMatrix = mat4.perspective(fov, aspectRatio, this.zNear, this.zFar);
   }
 
-  private createViewMat(): mat4 {
-    const mat = mat4.create();
-    mat4.lookAt(mat, this.viewTranslation, [0, 0, 0], [0, 1, 0]);
-    return mat;
+  private updateViewMatrix() {
+    const target = vec3.create(0, 0, 0);
+    const up = vec3.create(0, 1, 0);
+    const camera = mat4.lookAt(this.eye, target, up);
+    this.viewMatrix = mat4.inverse(camera);
   }
 
   private resize(width: number, height: number): void {
@@ -107,7 +105,7 @@ export default class WebGPURenderer {
         depthOrArrayLayers: 1,
       };
 
-      this.projectionMatrix = this.createPerspectiveMat();
+      this.updatePerspectiveMatrix();
       this.resizeSwapchain();
     }
   }
@@ -158,9 +156,9 @@ export default class WebGPURenderer {
   }
 
   private onMouseWheel = (event: WheelEvent): void => {
-    let z = (this.viewTranslation[2] += event.deltaY * 0.01);
+    let z = (this.eye[2] += event.deltaY * 0.01);
     z = Math.max(this.zNear, Math.min(this.zFar, z));
-    this.viewTranslation[2] = z;
+    this.eye[2] = z;
   };
 
   private createBuffer(arr: Float32Array | Uint16Array, usage: GPUBufferUsageFlags): GPUBuffer {
@@ -183,8 +181,18 @@ export default class WebGPURenderer {
     }
   }
 
+  private createUBOArray(): Float32Array {
+    const uboArray = new Float32Array(16 * 3);
+    uboArray.set(this.modelMatrix);
+    uboArray.set(this.viewMatrix, 16);
+    uboArray.set(this.perspectiveMatrix, 32);
+    return uboArray;
+    // return new Float32Array([...this.modelMatrix, ...this.cameraMatrix, ...this.perspectiveMatrix]);
+  }
+
   private updateUniformBuffer(): void {
-    const uboArray = new Float32Array([...this.modelMatrix, ...this.createViewMat(), ...this.projectionMatrix]);
+    this.updateViewMatrix();
+    const uboArray = this.createUBOArray();
 
     this.queue.writeBuffer(this.uniformBuffer, 0, uboArray.buffer);
   }
@@ -276,7 +284,7 @@ export default class WebGPURenderer {
     this.colorBuffer = this.createBuffer(COLORS, GPUBufferUsage.VERTEX);
     this.indexBuffer = this.createBuffer(INDICES, GPUBufferUsage.INDEX);
 
-    const uboArray = new Float32Array([...this.modelMatrix, ...this.viewMatrix, ...this.projectionMatrix]);
+    const uboArray = this.createUBOArray();
     this.uniformBuffer = this.createBuffer(uboArray, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
 
     // create shader modules
@@ -393,7 +401,8 @@ export default class WebGPURenderer {
   }
 
   private render = (): void => {
-    mat4.rotateZ(this.modelMatrix, this.modelMatrix, glMatrix.toRadian(0.5));
+    const rotation = (0.5 * Math.PI) / 180;
+    mat4.rotateZ(this.modelMatrix, rotation, this.modelMatrix);
 
     this.updateUniformBuffer();
     this.encodeCommands();
