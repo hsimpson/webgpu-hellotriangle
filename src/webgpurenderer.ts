@@ -90,8 +90,7 @@ export default class WebGPURenderer {
   private updateViewMatrix() {
     const target = vec3.create(0, 0, 0);
     const up = vec3.create(0, 1, 0);
-    const camera = mat4.lookAt(this.eye, target, up);
-    this.viewMatrix = mat4.inverse(camera);
+    this.viewMatrix = mat4.lookAt(this.eye, target, up);
   }
 
   private resize(width: number, height: number): void {
