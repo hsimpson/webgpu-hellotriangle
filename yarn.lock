@@ -184,15 +184,20 @@
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
 
+"@types/dom-webcodecs@^0.1.7":
+  version "0.1.7"
+  resolved "https://registry.yarnpkg.com/@types/dom-webcodecs/-/dom-webcodecs-0.1.7.tgz#29d3e7d4e0b9902676c599d74c1b6c15eafce714"
+  integrity sha512-1euwRyJ7rQrddOa24d5ZcoDRMp68xEIwyb7PKb3Wpc2OullUxHQ4a63WPa5V8R+KtCWISKjgS+f83HCUVhXS/w==
+
 "@types/json-schema@^7.0.9":
   version "7.0.10"
   resolved "https://registry.yarnpkg.com/@types/json-schema/-/json-schema-7.0.10.tgz#9b05b7896166cd00e9cbd59864853abf65d9ac23"
   integrity sha512-BLO9bBq59vW3fxCpD4o0N4U+DXsvwvIcl+jofw0frQo/GrBFC+/jRZj1E7kgp6dvTyNmA4y6JCV5Id/r3mNP5A==
 
-"@types/node@^20.1.1":
-  version "20.1.1"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-20.1.1.tgz#afc492e8dbe7f672dd3a13674823522b467a45ad"
-  integrity sha512-uKBEevTNb+l6/aCQaKVnUModfEMjAl98lw2Si9P5y4hLu9tm6AlX2ZIoXZX6Wh9lJueYPrGPKk5WMCNHg/u6/A==
+"@types/node@^20.1.4":
+  version "20.1.4"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-20.1.4.tgz#83f148d2d1f5fe6add4c53358ba00d97fc4cdb71"
+  integrity sha512-At4pvmIOki8yuwLtd7BNHl3CiWNbtclUbNtScGx4OHfBd4/oWoJC8KRCIxXwkdndzhxOsPXihrsOoydxBjlE9Q==
 
 "@types/semver@^7.3.12":
   version "7.3.13"
@@ -1106,10 +1111,10 @@ vite@^4.3.5:
   optionalDependencies:
     fsevents "~2.3.2"
 
-wgpu-matrix@^2.1.0:
-  version "2.1.0"
-  resolved "https://registry.yarnpkg.com/wgpu-matrix/-/wgpu-matrix-2.1.0.tgz#be1b0eb7cd471f9af45964533a8620ad612e7839"
-  integrity sha512-6wy2ZEVrM4jFdGmAzAG27/Zynlcd3jbqh8u/1jKQKm01J9Rbr6t0E//Uju5TlVPQUpv6vSM0n/BQGF6xIyjJyQ==
+wgpu-matrix@^2.2.1:
+  version "2.2.1"
+  resolved "https://registry.yarnpkg.com/wgpu-matrix/-/wgpu-matrix-2.2.1.tgz#6e6ba692023dbdb248f8f4247328ed391376f7d0"
+  integrity sha512-LiFL7N+MXAiBu6vFeIV3+iV5yPagksaP7jPQlsUdt4/NzmYx2DSNt8FBnJGTf5MHfw54rQX25DoiqhTk757TBA==
 
 which@^2.0.1:
   version "2.0.2"

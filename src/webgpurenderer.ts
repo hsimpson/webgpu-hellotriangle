@@ -1,6 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/triple-slash-reference
-/// <reference path="../node_modules/@webgpu/types/dist/index.d.ts" />
-
 import { mat4, vec3 } from 'wgpu-matrix';
 
 /*
