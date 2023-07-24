@@ -346,8 +346,9 @@ export default class WebGPURenderer {
       ],
     });
 
-    const piplineLayoutDesc: GPUPipelineLayoutDescriptor = { bindGroupLayouts: [uniformBindGroupLayout] };
-    const layout = this.device.createPipelineLayout(piplineLayoutDesc);
+    const layout = this.device.createPipelineLayout({
+      bindGroupLayouts: [uniformBindGroupLayout],
+    });
 
     const vertexState: GPUVertexState = {
       module: this.vertexModule,
