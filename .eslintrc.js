@@ -1,4 +1,10 @@
 module.exports = {
+  env: {
+    node: true,
+    browser: true,
+    es6: true,
+  },
+  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'prettier'],
   parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 2022,
@@ -6,13 +12,7 @@ module.exports = {
     tsconfigRootDir: __dirname,
     sourceType: 'module',
   },
-  plugins: ['@typescript-eslint'],
-  env: {
-    node: true,
-    browser: true,
-    es6: true,
-  },
-  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'prettier'],
+  plugins: ['@typescript-eslint'],  
   rules: {
     // note you must disable the base rule as it can report incorrect errors
     'no-unused-vars': 'off',
