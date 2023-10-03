@@ -12,7 +12,7 @@ module.exports = {
     tsconfigRootDir: __dirname,
     sourceType: 'module',
   },
-  plugins: ['@typescript-eslint'],  
+  plugins: ['@typescript-eslint'],
   rules: {
     // note you must disable the base rule as it can report incorrect errors
     'no-unused-vars': 'off',
