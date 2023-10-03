@@ -4,7 +4,7 @@ module.exports = {
     browser: true,
     es6: true,
   },
-  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'prettier'],
+  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'plugin:prettier/recommended'],
   parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 2022,
@@ -42,6 +42,7 @@ module.exports = {
     'no-unused-vars': 'off',
     'no-warning-comments': 'warn',
     'object-shorthand': ['warn', 'always'],
+    'prettier/prettier': 'error',
     //"@typescript-eslint/explicit-member-accessibility": ["error"],
     //"@typescript-eslint/interface-name-prefix": ["warn", { "prefixWithI": "always" }],
     curly: 'warn',
