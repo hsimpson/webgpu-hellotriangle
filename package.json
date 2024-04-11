@@ -22,7 +22,7 @@
   },
   "homepage": "https://github.com/hsimpson/webgpu-hellotriangle#readme",
   "devDependencies": {
-    "@types/node": "^20.11.27",
+    "@types/node": "^20.12.7",
     "@typescript-eslint/eslint-plugin": "^7.2.0",
     "@typescript-eslint/parser": "^7.2.0",
     "@typescript-eslint/typescript-estree": "^7.2.0",
@@ -31,10 +31,10 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.3",
     "prettier": "^3.2.5",
-    "typescript": "5.4.2",
-    "vite": "^5.1.7"
+    "typescript": "^5.4.5",
+    "vite": "^5.2.8"
   },
   "dependencies": {
-    "wgpu-matrix": "^2.5.1"
+    "wgpu-matrix": "^2.8.0"
   }
 }
