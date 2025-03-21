@@ -32,35 +32,33 @@ const COLORS = new Float32Array([
 const INDICES = new Uint16Array([0, 1, 2, 0]);
 
 export default class WebGPURenderer {
-  private canvas: HTMLCanvasElement;
+  private device!: GPUDevice;
+  private queue!: GPUQueue;
 
-  private device: GPUDevice;
-  private queue: GPUQueue;
-
-  private presentationContext: GPUCanvasContext;
-  private presentationSize: GPUExtent3DDict;
-  private presentationFormat: GPUTextureFormat;
+  private presentationContext!: GPUCanvasContext;
+  private presentationSize!: GPUExtent3DDict;
+  private presentationFormat!: GPUTextureFormat;
 
   // buffers
-  private positionBuffer: GPUBuffer;
-  private colorBuffer: GPUBuffer;
-  private indexBuffer: GPUBuffer;
-  private uniformBuffer: GPUBuffer;
+  private positionBuffer!: GPUBuffer;
+  private colorBuffer!: GPUBuffer;
+  private indexBuffer!: GPUBuffer;
+  private uniformBuffer!: GPUBuffer;
 
   // shader modules
-  private vertexModule: GPUShaderModule;
-  private fragmentModule: GPUShaderModule;
+  private vertexModule!: GPUShaderModule;
+  private fragmentModule!: GPUShaderModule;
 
-  private renderTarget: GPUTexture;
-  private renderTargetView: GPUTextureView;
+  private renderTarget!: GPUTexture;
+  private renderTargetView!: GPUTextureView;
 
-  private depthTarget: GPUTexture;
-  private depthTargetView: GPUTextureView;
+  private depthTarget!: GPUTexture;
+  private depthTargetView!: GPUTextureView;
 
-  private renderPipeline: GPURenderPipeline;
+  private renderPipeline!: GPURenderPipeline;
 
-  private commandEncoder: GPUCommandEncoder;
-  private passEncoder: GPURenderPassEncoder;
+  private commandEncoder!: GPUCommandEncoder;
+  private passEncoder!: GPURenderPassEncoder;
 
   private modelMatrix = mat4.identity();
   private viewMatrix = mat4.identity();
@@ -70,9 +68,9 @@ export default class WebGPURenderer {
   private readonly zFar = 1000;
   private readonly sampleCount = 4;
 
-  private uniformBindGroup: GPUBindGroup;
+  private uniformBindGroup!: GPUBindGroup;
 
-  public constructor(canvas: HTMLCanvasElement) {
+  public constructor(private canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.updateViewMatrix();
     this.updatePerspectiveMatrix();
@@ -108,12 +106,18 @@ export default class WebGPURenderer {
 
   private async initialize(): Promise<boolean> {
     const gpu: GPU = navigator.gpu;
+
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (!gpu) {
       console.error('No WebGPU support navigator.gpu not available!');
       return false;
     }
 
     const adapter = await gpu.requestAdapter();
+    if (!adapter) {
+      console.error('failed to get GPUAdapter, gpu: ', gpu);
+      return false;
+    }
     console.log(adapter.limits);
 
     this.device = await adapter.requestDevice();
@@ -131,7 +135,12 @@ export default class WebGPURenderer {
       depthOrArrayLayers: 1,
     };
 
-    this.presentationContext = this.canvas.getContext('webgpu');
+    const gpuCanvasContext = this.canvas.getContext('webgpu');
+    if (!gpuCanvasContext) {
+      console.error('failed to get GPUCanvasContext');
+      return false;
+    }
+    this.presentationContext = gpuCanvasContext;
     this.presentationFormat = gpu.getPreferredCanvasFormat();
 
     this.presentationContext.configure({
@@ -144,7 +153,10 @@ export default class WebGPURenderer {
       if (!Array.isArray(entries)) {
         return;
       }
-      this.resize(entries[0].contentRect.width * window.devicePixelRatio, entries[0].contentRect.height * window.devicePixelRatio);
+      this.resize(
+        entries[0].contentRect.width * window.devicePixelRatio,
+        entries[0].contentRect.height * window.devicePixelRatio,
+      );
     });
     resizeObserver.observe(this.canvas);
 
@@ -167,13 +179,17 @@ export default class WebGPURenderer {
 
       const bufferMapped = buffer.getMappedRange();
 
-      const writeArray = arr instanceof Float32Array ? new Float32Array(bufferMapped) : new Uint16Array(bufferMapped);
+      const writeArray =
+        arr instanceof Float32Array
+          ? new Float32Array(bufferMapped)
+          : new Uint16Array(bufferMapped);
       writeArray.set(arr);
       buffer.unmap();
 
       return buffer;
     } catch (error) {
       console.error(error);
+      throw error;
     }
   }
 
@@ -204,6 +220,7 @@ export default class WebGPURenderer {
   }
 
   private resizeSwapchain(): void {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (this.renderTarget !== undefined) {
       this.renderTarget.destroy();
       this.depthTarget.destroy();
@@ -236,6 +253,7 @@ export default class WebGPURenderer {
       storeOp: 'store',
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (this.sampleCount > 1) {
       colorAttachment.view = this.renderTargetView;
       colorAttachment.resolveTarget = this.presentationContext.getCurrentTexture().createView();
@@ -281,7 +299,10 @@ export default class WebGPURenderer {
     this.indexBuffer = this.createBuffer(INDICES, GPUBufferUsage.INDEX);
 
     const uboArray = this.createUBOArray();
-    this.uniformBuffer = this.createBuffer(uboArray, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST);
+    this.uniformBuffer = this.createBuffer(
+      uboArray,
+      GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    );
 
     // create shader modules
     this.vertexModule = await this.loadShader('./shaders/basic.vert.wgsl');
@@ -415,7 +436,9 @@ export default class WebGPURenderer {
     } else {
       // no WebGPU support
       const errorEl = document.getElementById('error');
-      errorEl.style.display = 'block';
+      if (errorEl) {
+        errorEl.style.display = 'block';
+      }
     }
   }
 }

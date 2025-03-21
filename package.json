@@ -7,8 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "check-types": "tsc --noemit",
-    "lint:ts": "eslint . --ext .ts --fix",
-    "lint": "yarn check-types && yarn lint:ts"
+    "lint:ts": "eslint . --fix",
+    "lint": "yarn check-types && yarn lint:ts",
+    "format:check": "prettier . --check",
+    "format:fix": "prettier . --write"
   },
   "repository": {
     "type": "git",
@@ -22,19 +24,17 @@
   },
   "homepage": "https://github.com/hsimpson/webgpu-hellotriangle#readme",
   "devDependencies": {
-    "@types/node": "^22.5.4",
-    "@typescript-eslint/eslint-plugin": "^8.4.0",
-    "@typescript-eslint/parser": "^8.4.0",
-    "@typescript-eslint/typescript-estree": "^8.4.0",
-    "@webgpu/types": "^0.1.44",
-    "eslint": "^8.57.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-prettier": "^5.2.1",
-    "prettier": "^3.3.3",
-    "typescript": "^5.5.4",
-    "vite": "^5.4.3"
+    "@eslint/js": "^9.22.0",
+    "@types/node": "^22.13.11",
+    "@webgpu/types": "^0.1.57",
+    "eslint": "^9.22.0",
+    "eslint-config-prettier": "^10.1.1",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.27.0",
+    "vite": "^6.2.2"
   },
   "dependencies": {
-    "wgpu-matrix": "^3.1.0"
+    "wgpu-matrix": "^3.4.0"
   }
 }
