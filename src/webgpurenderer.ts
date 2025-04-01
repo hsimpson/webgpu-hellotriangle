@@ -394,7 +394,7 @@ export default class WebGPURenderer {
       writeMask: GPUColorWrite.ALL,
     };
 
-    const fragmentStage: GPUFragmentState = {
+    const fragmentState: GPUFragmentState = {
       module: this.fragmentModule,
       entryPoint: 'main',
       targets: [colorState],
@@ -403,7 +403,7 @@ export default class WebGPURenderer {
     const pipelineDesc: GPURenderPipelineDescriptor = {
       layout,
       vertex: vertexState,
-      fragment: fragmentStage,
+      fragment: fragmentState,
       primitive: {
         topology: 'triangle-list',
         frontFace: 'cw',
