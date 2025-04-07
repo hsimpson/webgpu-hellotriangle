@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build --emptyOutDir",
     "check-types": "tsc --noemit",
     "lint:ts": "eslint . --fix",
     "lint": "yarn check-types && yarn lint:ts",

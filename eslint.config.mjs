@@ -9,7 +9,9 @@ export default tseslint.config(
   tseslint.configs.strictTypeChecked,
   // ...tseslint.config.stylistic,
 
-  { ignores: ['dist/**/*', 'eslint.config.mjs', '.prettierrc.js'] },
+  {
+    ignores: ['dist/**/*', 'eslint.config.mjs', '.prettierrc.js', 'vite.config.mjs'],
+  },
   {
     languageOptions: {
       parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },

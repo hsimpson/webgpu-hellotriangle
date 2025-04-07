@@ -211,10 +211,8 @@ export default class WebGPURenderer {
 
   private async loadShader(path: string): Promise<GPUShaderModule> {
     const response = await fetch(path);
-
-    const shaderModule = this.device.createShaderModule({
-      code: await response.text(),
-    });
+    const code = await response.text();
+    const shaderModule = this.device.createShaderModule({ code });
 
     return shaderModule;
   }
