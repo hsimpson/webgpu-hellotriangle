@@ -376,7 +376,7 @@ export default class WebGPURenderer {
     };
 
     const colorState: GPUColorTargetState = {
-      format: 'bgra8unorm',
+      format: this.presentationFormat,
       blend: {
         alpha: {
           srcFactor: 'src-alpha',
