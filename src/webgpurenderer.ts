@@ -11,20 +11,20 @@ import { mat4, vec3 } from 'wgpu-matrix';
 
 const POSITIONS = new Float32Array([
   // A
-  1.0, -1.0, 0.0,
+  1, -1, 0,
   // B
-  -1.0, -1.0, 0.0,
+  -1, -1, 0,
   // C
-  0.0, 1.0, 0.0,
+  0, 1, 0,
 ]);
 
 const COLORS = new Float32Array([
   // A (red)
-  1.0, 0.0, 0.0, 1.0,
+  1, 0, 0, 1,
   // B (green)
-  0.0, 1.0, 0.0, 1.0,
+  0, 1, 0, 1,
   // C (blue)
-  0.0, 0.0, 1.0, 1.0,
+  0, 0, 1, 1,
 ]);
 
 // add an additional 4th index for padding, because when the buffer is created via device.createBuffer() and
@@ -60,7 +60,7 @@ export default class WebGPURenderer {
   private commandEncoder!: GPUCommandEncoder;
   private passEncoder!: GPURenderPassEncoder;
 
-  private modelMatrix = mat4.identity();
+  private readonly modelMatrix = mat4.identity();
   private viewMatrix = mat4.identity();
   private perspectiveMatrix = mat4.identity();
   private eye = vec3.create(0, 0, 5);
@@ -70,7 +70,7 @@ export default class WebGPURenderer {
 
   private uniformBindGroup!: GPUBindGroup;
 
-  public constructor(private canvas: HTMLCanvasElement) {
+  public constructor(private readonly canvas: HTMLCanvasElement) {
     this.canvas = canvas;
     this.updateViewMatrix();
     this.updatePerspectiveMatrix();
@@ -150,12 +150,13 @@ export default class WebGPURenderer {
     });
 
     const resizeObserver = new ResizeObserver(entries => {
-      if (!Array.isArray(entries)) {
+      const entry = entries[0];
+      if (!entry) {
         return;
       }
       this.resize(
-        entries[0].contentRect.width * window.devicePixelRatio,
-        entries[0].contentRect.height * window.devicePixelRatio,
+        entry.contentRect.width * window.devicePixelRatio,
+        entry.contentRect.height * window.devicePixelRatio,
       );
     });
     resizeObserver.observe(this.canvas);
@@ -163,8 +164,8 @@ export default class WebGPURenderer {
     return true;
   }
 
-  private onMouseWheel = (event: WheelEvent): void => {
-    let z = (this.eye[2] += event.deltaY * 0.01);
+  private readonly onMouseWheel = (event: WheelEvent): void => {
+    let z = (this.eye[2] ?? 0) + event.deltaY * 0.01;
     z = Math.max(this.zNear, Math.min(this.zFar, z));
     this.eye[2] = z;
   };
@@ -199,7 +200,6 @@ export default class WebGPURenderer {
     uboArray.set(this.viewMatrix, 16);
     uboArray.set(this.perspectiveMatrix, 32);
     return uboArray;
-    // return new Float32Array([...this.modelMatrix, ...this.cameraMatrix, ...this.perspectiveMatrix]);
   }
 
   private updateUniformBuffer(): void {
@@ -246,7 +246,7 @@ export default class WebGPURenderer {
   private encodeCommands(): void {
     const colorAttachment: GPURenderPassColorAttachment = {
       view: this.presentationContext.getCurrentTexture().createView(),
-      clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+      clearValue: { r: 0, g: 0, b: 0, a: 1 },
       loadOp: 'clear',
       storeOp: 'store',
     };
@@ -261,7 +261,7 @@ export default class WebGPURenderer {
       view: this.depthTargetView,
 
       depthLoadOp: 'clear',
-      depthClearValue: 1.0,
+      depthClearValue: 1,
       depthStoreOp: 'store',
 
       stencilLoadOp: 'clear',
@@ -329,11 +329,6 @@ export default class WebGPURenderer {
       arrayStride: 4 * 4, // size of Float32 = 4 bytes * count of elements
       stepMode: 'vertex',
     };
-
-    // const vertexState: GPUVertexState = {
-    //   indexFormat: 'uint16',
-    //   vertexBuffers: [positionBufferLayout, colorBufferLayout],
-    // };
 
     const depthStencilState: GPUDepthStencilState = {
       depthWriteEnabled: true,
@@ -416,7 +411,7 @@ export default class WebGPURenderer {
     this.renderPipeline = this.device.createRenderPipeline(pipelineDesc);
   }
 
-  private render = (): void => {
+  private readonly render = (): void => {
     const rotation = (0.5 * Math.PI) / 180;
     mat4.rotateZ(this.modelMatrix, rotation, this.modelMatrix);
 
